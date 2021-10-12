@@ -7,13 +7,22 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using BerkshireForm.Models;
+using BerkshireForm.SpecialExceptions;
+using BerkshireForm.Database.DataAccess;
 
 namespace BerkshireForm
 {
     public partial class BHHCReasonViewer : Form
     {
         /*BindingList provides change notifications*/
-        BindingList<string> reasonList = new BindingList<string>();
+        BindingList<Reason> reasonList;
+        //BindingList<Reason> reasonList = new BindingList<Reason>();
+        //BindingList<string> reasonList = new BindingList<string>();
+
+        /**/
+        ReasonMaster reasonMaster = new ReasonMaster();
+
         public BHHCReasonViewer()
         {
             InitializeComponent();
@@ -23,7 +32,9 @@ namespace BerkshireForm
             will be reflected in the listbox, removing the need to explicitly update the contents of the control*/
         private void BHHCReasonViewer_Load(object sender, EventArgs e)
         {
-            lstReasons.DataSource = reasonList;
+            reasonMaster.TableSetup();
+            LoadReasons();
+            
         }
 
         //private void InitializeReasonList()
@@ -34,6 +45,12 @@ namespace BerkshireForm
         //    reasonList.AllowEdit = true;
         //}
 
+        private void LoadReasons()
+        {
+            reasonList = new BindingList<Reason>(reasonMaster.Get());
+            lstReasons.DataSource = reasonList;
+            lstReasons.DisplayMember = "ReasonText";
+        }
 
         private void btnAddReason_onClick(object sender, EventArgs e)
         {
@@ -49,21 +66,37 @@ namespace BerkshireForm
                     /*Ensures that input isn't processed if user chose to cancel the addition*/
                     if (input.ShowDialog() == DialogResult.OK)
                     {
+                        
                         newReason = input.Reason;
+                        //input.Close();
                     }
                     
                 }
 
-                /*If the addition was canceled, or the user didn't input any text, don't update the list*/
+                /*If the addition was canceled, or the user didn't input any text, don't update the list or db*/
                 if (!string.IsNullOrEmpty(newReason))
                 {
-                    reasonList.Add(newReason);
+                    var reasonId = reasonMaster.Add(newReason);
+                    reasonList.Add(new Reason
+                    {
+                        Id = reasonId,
+                        ReasonText = newReason
+                    });
+                    //reasonList.Add(newReason);
                 }
 
             }
+            catch (ReasonDataException dex)
+            {
+                if (dex.InnerException != null)
+                    Console.WriteLine("Inner exception: {0}", dex.InnerException);
+                    
+                MessageBox.Show($"Please retry: {dex.ActionType} for reason {dex.InputText}");
+            }
             catch (Exception ex)
             {
-                MessageBox.Show(ex.Message);
+                Console.WriteLine(ex.Message);
+                MessageBox.Show("Reason Add Error");
             }
             
         }
@@ -76,7 +109,8 @@ namespace BerkshireForm
                 //string reason = lstReasons.SelectedItem.ToString();
 
                 int reasonIndex;
-                string reason;
+                Reason reason;
+                
 
                 /*As long as there's at least 1 item in the list, there will be a selected index
                     If a selected item is deleted, listbox automatically selects an existing item*/
@@ -89,32 +123,44 @@ namespace BerkshireForm
                         from a list of strings to a list of objects*/
                     reason = reasonList[reasonIndex];
 
-                    /*Minimize scope of the input form 
-                        * Allow disposal as soon as we grab the input text via the "Reason" attribute*/
-                    using (InputDialog input = new InputDialog())
+                    
+
+
+                    if (reason != null)
                     {
-                        /*Populate the input textbox with the current text*/
-                        input.Reason = reason;
 
-                        /*Customize button text to improve user experience*/
-                        input.Action = "Save";
-
-                        /*Ensure that the item isn't modified if the user canceled the edit*/
-                        if (input.ShowDialog() == DialogResult.OK)
+                        string reasonText = reason.ReasonText;
+                        /*Minimize scope of the input form 
+                            * Allow disposal as soon as we grab the input text via the "Reason" attribute*/
+                        using (InputDialog input = new InputDialog())
                         {
-                            reason = input.Reason;
+                            /*Populate the input textbox with the current text*/
+                            input.Reason = reasonText;
+
+                            /*Customize button text to improve user experience*/
+                            input.Action = "Save";
+
+                            /*Ensure that the item isn't modified if the user canceled the edit*/
+                            if (input.ShowDialog() == DialogResult.OK)
+                            {
+                                reasonText = input.Reason;
+                            }
+                        }
+
+                        /*If the user cleared the text, delete the item*/
+                        if (!String.IsNullOrEmpty(reasonText))
+                        {
+                            //add logic to update in db
+                            reason.ReasonText = reasonText;
+                        }
+                        else
+                        {
+                            //add call to delete from db
+                            reasonList.RemoveAt(reasonIndex);
                         }
                     }
-
-                    /*If the user cleared the text, delete the item*/
-                    if(!String.IsNullOrEmpty(reason))
-                    {
-                        reasonList[reasonIndex] = reason;
-                    }
-                    else
-                    {
-                        reasonList.RemoveAt(reasonIndex);
-                    }
+                    
+                    
                 }
                
                 
@@ -137,6 +183,7 @@ namespace BerkshireForm
                 if (reasonList.Count > 0)
                 {
                     reasonIndex = lstReasons.SelectedIndex;
+                    //delete from db
                     reasonList.RemoveAt(reasonIndex);
                 }
             }
@@ -144,6 +191,32 @@ namespace BerkshireForm
             {
                 MessageBox.Show(ex.Message);
             }
+        }
+
+        private void DeleteReason(int reasonIndex, int reasonId)
+        {
+            try
+            {
+                var deletedRows = reasonMaster.Delete(reasonId);
+                if (deletedRows > 0)
+                {
+                    Console.WriteLine($"Deleted {deletedRows} for Id = {reasonId}");
+                    reasonList.RemoveAt(reasonIndex);
+                }
+                else
+                {
+                    var reasonText = reasonList[reasonIndex].ReasonText;
+                    Console.WriteLine($"Delete failed - No rows found for Id = {reasonId} with ReasonText = {reasonText}, located at index {reasonIndex}");
+                    MessageBox.Show($"Delete failed for reason: {reasonText}");
+
+                }
+                
+            }
+            catch(Exception ex)
+            {
+                MessageBox.Show(ex.Message);
+            }
+            
         }
     }
 }

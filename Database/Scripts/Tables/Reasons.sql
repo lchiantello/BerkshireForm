@@ -1,4 +1,4 @@
-﻿CREATE TABLE [Reasons] (
+﻿CREATE TABLE [Reason] (
   [Id] integer primary key not null,
-  [reasonText] nvarchar(2083)
+  [ReasonText] nvarchar(2083)
 );
