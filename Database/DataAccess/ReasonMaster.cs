@@ -7,6 +7,8 @@ using BerkshireForm.Models;
 using System.Data.SQLite;
 using Dapper;
 using BerkshireForm.SpecialExceptions;
+using System.Data;
+using Dapper.Contrib.Extensions;
 
 namespace BerkshireForm.Database.DataAccess
 {
@@ -20,7 +22,7 @@ namespace BerkshireForm.Database.DataAccess
         public void TableSetup()
         {
             string sql = "CREATE TABLE IF NOT EXISTS [Reason] ( [Id] integer primary key not null, [ReasonText] nvarchar(2083))";
-            using (SQLiteConnection connection = new SQLiteConnection(connString))
+            using (IDbConnection connection = new SQLiteConnection(connString))
             {
                 connection.Execute(sql);
             }
@@ -30,12 +32,13 @@ namespace BerkshireForm.Database.DataAccess
         {
             try
             {
-                string sql = "select * from Reason";
+                //string sql = "select * from Reason";
 
-                using (SQLiteConnection connection = new SQLiteConnection(connString))
+                using (IDbConnection connection = new SQLiteConnection(connString))
                 {
                     //var trans = connection.BeginTransaction();
-                    return connection.Query<Reason>(sql).ToList();
+                    //return connection.Query<Reason>(sql).ToList();
+                    return connection.GetAll<Reason>().ToList();
 
                 }
             }
@@ -49,11 +52,12 @@ namespace BerkshireForm.Database.DataAccess
         {
             try
             {
-                string sql = "select * from Reason where Id = @Id";
-                using (SQLiteConnection connection = new SQLiteConnection(connString))
+                //string sql = "select * from Reason where Id = @Id";
+                using (IDbConnection connection = new SQLiteConnection(connString))
                 {
                     //var trans = connection.BeginTransaction();
-                    return connection.QuerySingleOrDefault<Reason>(sql, new { Id = reasonId });
+                    //return connection.QuerySingleOrDefault<Reason>(sql, new { Id = reasonId });
+                    return connection.Get<Reason>(reasonId);
 
                 }
             }
@@ -63,32 +67,34 @@ namespace BerkshireForm.Database.DataAccess
             }
         }
 
-        public int Update(int reasonId, string newReasonText)
+        public bool Update(int reasonId, string newReasonText)
         {
-            int affectedRows = 0;
-            string sql = "Update Reason SET ReasonText = @ReasonText where Id = @Id";
+            //int affectedRows = 0;
+            //string sql = "Update Reason SET ReasonText = @ReasonText where Id = @Id";
 
-            using (SQLiteConnection connection = new SQLiteConnection(connString))
+            using (IDbConnection connection = new SQLiteConnection(connString))
             {
-                affectedRows = connection.Execute(sql, new { Id = reasonId, ReasonText = newReasonText });
+                //affectedRows = connection.Execute(sql, new { Id = reasonId, ReasonText = newReasonText });
+               return connection.Update(new Reason { Id = reasonId, ReasonText = newReasonText });
 
             }
 
-            return affectedRows;
+           // return affectedRows;
         }
 
-        public int Delete(int reasonId)
+        public bool Delete(int reasonId)
         {
-            int affectedRows = 0;
-            string sql = "DELETE from Reason WHERE Id = @Id";
+            //bool success = false;
+            //string sql = "DELETE from Reason WHERE Id = @Id";
 
-            using (SQLiteConnection connection = new SQLiteConnection(connString))
+            using (IDbConnection connection = new SQLiteConnection(connString))
             {
-                affectedRows = connection.Execute(sql, new { Id = reasonId });
+                //affectedRows = connection.Execute(sql, new { Id = reasonId });
+
+                return connection.Delete(new Reason { Id = reasonId });
 
             }
 
-            return affectedRows;
         }
 
         //public void Add1(string reasonText)
@@ -106,7 +112,8 @@ namespace BerkshireForm.Database.DataAccess
                 int newId;
                 string sql = "insert into Reason (ReasonText) values (@ReasonText); select last_insert_rowid()";
 
-                using (SQLiteConnection connection = new SQLiteConnection(connString))
+                /*Not using dapper.contrib "Insert" because the selection call for the new id must occur in the same call as the insert operation*/
+                using (IDbConnection connection = new SQLiteConnection(connString))
                 {
                     //var trans = connection.BeginTransaction();
                     newId = connection.QuerySingle<int>(sql, new { ReasonText = reasonText });

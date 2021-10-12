@@ -198,11 +198,11 @@ namespace BerkshireForm
             {
                 Reason reason = reasonList[reasonIndex];
 
-                var deletedRows = reasonMaster.Delete(reason.Id);
+                var success = reasonMaster.Delete(reason.Id);
                 
-                if (deletedRows > 0)
+                if (success)
                 {
-                    Console.WriteLine($"Deleted {deletedRows} for Id = {reason.Id}");
+                    Console.WriteLine($"Successfully deleted reason with Id = {reason.Id}");
                     reasonList.RemoveAt(reasonIndex);
                 }
                 else
