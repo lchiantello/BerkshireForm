@@ -156,7 +156,7 @@ namespace BerkshireForm
                         else
                         {
                             //add call to delete from db
-                            reasonList.RemoveAt(reasonIndex);
+                            DeleteReason(reasonIndex);
                         }
                     }
                     
@@ -176,15 +176,14 @@ namespace BerkshireForm
         {
             try
             {
-                int reasonIndex;
-
                 /*As long as there's at least 1 item in the list, there will be a selected index
                     If a selected item is deleted, listbox automatically selects an existing item*/
                 if (reasonList.Count > 0)
                 {
-                    reasonIndex = lstReasons.SelectedIndex;
-                    //delete from db
-                    reasonList.RemoveAt(reasonIndex);
+                    //reasonIndex = lstReasons.SelectedIndex;
+                    ////delete from db
+                    //reasonList.RemoveAt(reasonIndex);
+                    DeleteReason(lstReasons.SelectedIndex);
                 }
             }
             catch (Exception ex)
@@ -193,21 +192,23 @@ namespace BerkshireForm
             }
         }
 
-        private void DeleteReason(int reasonIndex, int reasonId)
+        private void DeleteReason(int reasonIndex)
         {
             try
             {
-                var deletedRows = reasonMaster.Delete(reasonId);
+                Reason reason = reasonList[reasonIndex];
+
+                var deletedRows = reasonMaster.Delete(reason.Id);
+                
                 if (deletedRows > 0)
                 {
-                    Console.WriteLine($"Deleted {deletedRows} for Id = {reasonId}");
+                    Console.WriteLine($"Deleted {deletedRows} for Id = {reason.Id}");
                     reasonList.RemoveAt(reasonIndex);
                 }
                 else
                 {
-                    var reasonText = reasonList[reasonIndex].ReasonText;
-                    Console.WriteLine($"Delete failed - No rows found for Id = {reasonId} with ReasonText = {reasonText}, located at index {reasonIndex}");
-                    MessageBox.Show($"Delete failed for reason: {reasonText}");
+                    Console.WriteLine($"Delete failed - No rows found for Id = {reason.Id} with ReasonText = {reason.ReasonText}, located at index {reasonIndex}");
+                    MessageBox.Show($"Delete failed for reason: {reason.ReasonText}");
 
                 }
                 
