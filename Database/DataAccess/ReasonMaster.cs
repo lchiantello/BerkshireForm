@@ -12,39 +12,59 @@ using Dapper.Contrib.Extensions;
 
 namespace BerkshireForm.Database.DataAccess
 {
-    class ReasonMaster
+    /*Data access for Reason table will be handled through ReasonMaster*/
+    /*ReasonMaster implements the singleton pattern, so it is a sealed class*/
+    public sealed class ReasonMaster
     {
+        /*Singleton has a static variable that holds the single instance
+            "Eager" static initialization is thread-safe in .NET, so no locking would be necessary*/
+        private static readonly ReasonMaster instance = new ReasonMaster();
+
+        /*Define connection string as a private property, as it's used by every method but should not be accessible elsewhere*/
         private string connString = "DataSource = BHHC_DB.db;Version=3;New=False;Compress=True";
 
-        //private string connString = "DataSource = C:\\Users\\lpchi\\source\\repos\\BerkshireForm\\Database\\BHHC_DB.db;Version=3;New=False;Compress=True";
-        //private string connString = $"DataSource = {AppDomain.CurrentDomain.BaseDirectory}BHHC_DB.db;Version=3;New=False;Compress=True";
+        /*Singleton has a private constructor*/
+        private ReasonMaster()
+        { }
 
+        /*Singleton requires a public, static access point*/
+        public static ReasonMaster GetReasonMaster()
+        {
+            return instance;
+        }
+
+        /*Upon loading, create the table if it doesn't exist*/
         public void TableSetup()
         {
-            string sql = "CREATE TABLE IF NOT EXISTS [Reason] ( [Id] integer primary key not null, [ReasonText] nvarchar(2083))";
-            using (IDbConnection connection = new SQLiteConnection(connString))
+            try
             {
-                connection.Execute(sql);
+                string sql = "CREATE TABLE IF NOT EXISTS [Reason] ( [Id] integer primary key not null, [ReasonText] nvarchar(2083))";
+
+                using (IDbConnection connection = new SQLiteConnection(connString))
+                {
+                    connection.Execute(sql);
+                }
             }
+            catch (Exception ex)
+            {
+                throw new ReasonDataException("Database setup failed", "Table creation", "Reason", ex);
+            }
+            
         }
 
         public List<Reason> Get()
         {
             try
             {
-                //string sql = "select * from Reason";
 
                 using (IDbConnection connection = new SQLiteConnection(connString))
                 {
-                    //var trans = connection.BeginTransaction();
-                    //return connection.Query<Reason>(sql).ToList();
                     return connection.GetAll<Reason>().ToList();
-
                 }
             }
             catch (Exception ex)
             {
-                throw new ReasonDataException("", "Query", "", ex);
+                throw new ReasonDataException("Failed to load saved reasons", "Select all", "Reason", ex);
             }
         }
 
@@ -52,59 +72,54 @@ namespace BerkshireForm.Database.DataAccess
         {
             try
             {
-                //string sql = "select * from Reason where Id = @Id";
                 using (IDbConnection connection = new SQLiteConnection(connString))
                 {
-                    //var trans = connection.BeginTransaction();
-                    //return connection.QuerySingleOrDefault<Reason>(sql, new { Id = reasonId });
                     return connection.Get<Reason>(reasonId);
+                }
+            }
+            catch (Exception ex)
+            {
+                throw new ReasonDataException("Failed to retrieve reason", "Select by Id", $"Reason with Id: {reasonId}", ex);
+            }
+        }
+
+        /*Return "success" indicator to let the form know that the UI can be updated*/
+        public bool Update(int reasonId, string newReasonText)
+        {
+            try
+            {
+                using (IDbConnection connection = new SQLiteConnection(connString))
+                {
+                    return connection.Update(new Reason { Id = reasonId, ReasonText = newReasonText });
 
                 }
             }
             catch (Exception ex)
             {
-                throw new ReasonDataException("", "Query", "", ex);
+                throw new ReasonDataException("Failed to update reason to: ", $"Update by Id to Reason table for Id = {reasonId}", newReasonText, ex);
             }
+            
         }
 
-        public bool Update(int reasonId, string newReasonText)
-        {
-            //int affectedRows = 0;
-            //string sql = "Update Reason SET ReasonText = @ReasonText where Id = @Id";
-
-            using (IDbConnection connection = new SQLiteConnection(connString))
-            {
-                //affectedRows = connection.Execute(sql, new { Id = reasonId, ReasonText = newReasonText });
-               return connection.Update(new Reason { Id = reasonId, ReasonText = newReasonText });
-
-            }
-
-           // return affectedRows;
-        }
-
+        /*Return "success" indicator to let the form know that the item can be removed from the bindingList*/
         public bool Delete(int reasonId)
         {
-            //bool success = false;
-            //string sql = "DELETE from Reason WHERE Id = @Id";
-
-            using (IDbConnection connection = new SQLiteConnection(connString))
+            try
             {
-                //affectedRows = connection.Execute(sql, new { Id = reasonId });
+                using (IDbConnection connection = new SQLiteConnection(connString))
+                {
 
-                return connection.Delete(new Reason { Id = reasonId });
+                    return connection.Delete(new Reason { Id = reasonId });
 
+                }
             }
+            catch (Exception ex)
+            {
+                throw new ReasonDataException("Failed to delete reason", "Delete by Id", $"Reason with Id: {reasonId}", ex);
+            }
+            
 
         }
-
-        //public void Add1(string reasonText)
-        //{
-        //    using (SQLiteConnection connection = new SQLiteConnection(connString))
-        //    {
-        //        connection.Execute("insert into Reason (ReasonText) values (@ReasonText)", new { ReasonText = reasonText });
-        //    }
-        //}
-
         public int Add(string reasonText)
         {
             try
@@ -115,7 +130,6 @@ namespace BerkshireForm.Database.DataAccess
                 /*Not using dapper.contrib "Insert" because the selection call for the new id must occur in the same call as the insert operation*/
                 using (IDbConnection connection = new SQLiteConnection(connString))
                 {
-                    //var trans = connection.BeginTransaction();
                     newId = connection.QuerySingle<int>(sql, new { ReasonText = reasonText });
                 
                 }
@@ -124,22 +138,8 @@ namespace BerkshireForm.Database.DataAccess
             }
             catch (Exception ex)
             {
-                throw new ReasonDataException("", "Add", reasonText, ex);
+                throw new ReasonDataException("Unable to add reason", "Insert and select last inserted Id", reasonText, ex);
             }
-            //using (SQLiteConnection connection = new SQLiteConnection(connString))
-            //{
-            //    var trans = connection.BeginTransaction();
-
-            //    try
-            //    {
-            //        connection.Execute("insert into Reason (ReasonText) values (@ReasonText); select last_insert_rowid()", new { ReasonText = reasonText }, trans);
-            //    }
-            //    catch
-            //    {
-
-            //    }
-
-            //}
         }
     }
 }

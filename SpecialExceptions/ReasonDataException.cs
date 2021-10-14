@@ -6,6 +6,8 @@ using System.Threading.Tasks;
 
 namespace BerkshireForm.SpecialExceptions
 {
+    /*Custom exception class will be used by data access layer 
+        Will allow all exceptions to be handled in the form, while differentiating handling*/
     class ReasonDataException : Exception
     {
         public ReasonDataException() : base() { }
@@ -16,6 +18,9 @@ namespace BerkshireForm.SpecialExceptions
             this.ActionType = actionType;
             this.InputText = inputText;
         }
+
+        /*Custom properties allow better flexibility in displaying detailed exception info for developer
+            without exposing underlying functionality to user*/
 
         public string ActionType { get; set; }
         public string InputText { get; set; }

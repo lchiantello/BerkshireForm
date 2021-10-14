@@ -14,7 +14,7 @@ namespace BerkshireForm.Models
 
     /*Implement INotifyPropertyChanged to notify the bound Listbox of changes
      * to the Reason text without resetting the binding*/
-    class Reason : INotifyPropertyChanged
+    public class Reason : INotifyPropertyChanged
     {
         private int _id = 0;
         private string _reasonText = String.Empty;

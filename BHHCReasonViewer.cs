@@ -17,39 +17,69 @@ namespace BerkshireForm
     {
         /*BindingList provides change notifications*/
         BindingList<Reason> reasonList;
-        //BindingList<Reason> reasonList = new BindingList<Reason>();
-        //BindingList<string> reasonList = new BindingList<string>();
 
         /**/
-        ReasonMaster reasonMaster = new ReasonMaster();
+        ReasonMaster reasonMaster = ReasonMaster.GetReasonMaster();
 
         public BHHCReasonViewer()
         {
             InitializeComponent();
         }
 
-        /*Assigning a binding list as the data source ensures that any change to the collection
-            will be reflected in the listbox, removing the need to explicitly update the contents of the control*/
+        
         private void BHHCReasonViewer_Load(object sender, EventArgs e)
         {
-            reasonMaster.TableSetup();
-            LoadReasons();
-            
-        }
+            try
+            {
+                reasonMaster.TableSetup();
+                LoadReasons();
+            }
+            catch (ReasonDataException dex)
+            {
+                /*Print detailed exception data to the console, but don't expose it to the user for security reasons*/
+                Console.WriteLine($"Error: {dex.ActionType} failed for table {dex.InputText}");
+                /*Default ToString for the exception will include all salient details, including inner exception info*/
+                Console.WriteLine(dex);
+                /*Plain english is better for user experience and security*/
+                MessageBox.Show($"{dex.Message}");
+            }
+            catch (Exception ex)
+            {
+                /*Print detailed exception data to the console, but don't expose it to the user for security reasons*/
+                Console.WriteLine(ex);
+                /*Plain english is better for user experience and security*/
+                MessageBox.Show("Unable to load application");
+            }
 
-        //private void InitializeReasonList()
-        //{
-        //    reasonList.AllowNew = true;
-        //    reasonList.AllowRemove = true;
-        //    reasonList.RaiseListChangedEvents = true;
-        //    reasonList.AllowEdit = true;
-        //}
+        }
 
         private void LoadReasons()
         {
-            reasonList = new BindingList<Reason>(reasonMaster.Get());
-            lstReasons.DataSource = reasonList;
-            lstReasons.DisplayMember = "ReasonText";
+            try
+            {
+                /*Assigning a binding list as the data source ensures that any change to the collection
+                will be reflected in the listbox, removing the need to explicitly update the contents of the control*/
+                reasonList = new BindingList<Reason>(reasonMaster.Get());
+                lstReasons.DataSource = reasonList;
+                lstReasons.DisplayMember = "ReasonText";
+            }
+            catch(ReasonDataException dex)
+            {
+                /*Print detailed exception data to the console, but don't expose it to the user for security reasons*/
+                Console.WriteLine($"Error: {dex.ActionType} failed for table {dex.InputText}");
+                /*Default ToString for the exception will include all salient details, including inner exception info*/
+                Console.WriteLine(dex);
+                /*Plain english is better for user experience and security*/
+                MessageBox.Show(dex.Message);
+            }
+            catch(Exception ex)
+            {
+                /*Print detailed exception data to the console, but don't expose it to the user for security reasons*/
+                Console.WriteLine(ex);
+                /*Plain english is better for user experience and security*/
+                MessageBox.Show("Unable to load saved reasons");
+            }
+                        
         }
 
         private void btnAddReason_onClick(object sender, EventArgs e)
@@ -68,9 +98,7 @@ namespace BerkshireForm
                     {
                         
                         newReason = input.Reason;
-                        //input.Close();
-                    }
-                    
+                    }                   
                 }
 
                 /*If the addition was canceled, or the user didn't input any text, don't update the list or db*/
@@ -82,20 +110,19 @@ namespace BerkshireForm
                         Id = reasonId,
                         ReasonText = newReason
                     });
-                    //reasonList.Add(newReason);
                 }
 
             }
             catch (ReasonDataException dex)
             {
-                if (dex.InnerException != null)
-                    Console.WriteLine("Inner exception: {0}", dex.InnerException);
-                    
-                MessageBox.Show($"Please retry: {dex.ActionType} for reason {dex.InputText}");
+
+                Console.WriteLine($"Error: {dex.ActionType} for new input: {dex.InputText} failed");
+                Console.WriteLine(dex);
+                MessageBox.Show($"{dex.Message} {dex.InputText}");
             }
             catch (Exception ex)
             {
-                Console.WriteLine(ex.Message);
+                Console.WriteLine(ex);
                 MessageBox.Show("Reason Add Error");
             }
             
@@ -122,9 +149,7 @@ namespace BerkshireForm
                     /*Retrieving the item directly from the binding list facilitates potential modification
                         from a list of strings to a list of objects*/
                     reason = reasonList[reasonIndex];
-
                     
-
 
                     if (reason != null)
                     {
@@ -150,24 +175,37 @@ namespace BerkshireForm
                         /*If the user cleared the text, delete the item*/
                         if (!String.IsNullOrEmpty(reasonText))
                         {
-                            //add logic to update in db
-                            reason.ReasonText = reasonText;
+                            var success = reasonMaster.Update(reason.Id, reasonText);
+
+                            /*Only update the bindng list text if the update to the DB was successful, to keep the data and UI in sync*/
+                            if(success)
+                            {
+                                reason.ReasonText = reasonText;
+                                Console.WriteLine($"Successfully updated reasonText for reason with Id = {reason.Id}");
+                            }
+                            else
+                            {
+                                Console.WriteLine($"Update failed for Id = {reason.Id} from ReasonText = {reason.ReasonText} to {reasonText}, located at index {reasonIndex}");
+                                MessageBox.Show($"Update from {reason.ReasonText} to {reasonText} was unsuccessful");
+                            }                            
                         }
                         else
                         {
-                            //add call to delete from db
                             DeleteReason(reasonIndex);
                         }
-                    }
-                    
-                    
-                }
-               
-                
+                    }                                        
+                }                               
+            }
+            catch (ReasonDataException dex)
+            {
+                Console.WriteLine($"Error: {dex.ActionType} to new input: {dex.InputText} failed");
+                Console.WriteLine(dex);
+                MessageBox.Show($"{dex.Message} {dex.InputText}");
             }
             catch (Exception ex)
             {
-                MessageBox.Show(ex.Message);
+                Console.WriteLine(ex);
+                MessageBox.Show("Unable update reason");
             }
         }
 
@@ -180,18 +218,17 @@ namespace BerkshireForm
                     If a selected item is deleted, listbox automatically selects an existing item*/
                 if (reasonList.Count > 0)
                 {
-                    //reasonIndex = lstReasons.SelectedIndex;
-                    ////delete from db
-                    //reasonList.RemoveAt(reasonIndex);
                     DeleteReason(lstReasons.SelectedIndex);
                 }
             }
             catch (Exception ex)
             {
-                MessageBox.Show(ex.Message);
+                Console.WriteLine(ex);
+                MessageBox.Show("Unable delete reason");
             }
         }
 
+        /*Shared by delete button and edit button (if the user clears the input textbox while editing)*/
         private void DeleteReason(int reasonIndex)
         {
             try
@@ -199,7 +236,8 @@ namespace BerkshireForm
                 Reason reason = reasonList[reasonIndex];
 
                 var success = reasonMaster.Delete(reason.Id);
-                
+
+                /*Only update the bindng list if the deletion from the DB was successful, to keep the data and UI in sync*/
                 if (success)
                 {
                     Console.WriteLine($"Successfully deleted reason with Id = {reason.Id}");
@@ -208,16 +246,28 @@ namespace BerkshireForm
                 else
                 {
                     Console.WriteLine($"Delete failed - No rows found for Id = {reason.Id} with ReasonText = {reason.ReasonText}, located at index {reasonIndex}");
-                    MessageBox.Show($"Delete failed for reason: {reason.ReasonText}");
+                    MessageBox.Show($"Unable to delete reason: {reason.ReasonText}");
 
                 }
                 
             }
+            catch (ReasonDataException dex)
+            {
+                Console.WriteLine($"Error: {dex.ActionType} for {dex.InputText}, located at index {reasonIndex} failed");
+                Console.WriteLine(dex);
+                MessageBox.Show($"{dex.Message}");
+            }
             catch(Exception ex)
             {
-                MessageBox.Show(ex.Message);
+                Console.WriteLine(ex);
+                MessageBox.Show("Unable delete reason");
             }
             
+        }
+
+        private void btnExit_Click(object sender, EventArgs e)
+        {
+            this.Close();
         }
     }
 }
